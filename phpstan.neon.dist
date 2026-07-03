@@ -1,0 +1,21 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 8
+    paths:
+        - forminbox.php
+        - uninstall.php
+        - src
+    treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        # Repositories interpolate table names into queries before
+        # prepare(). Table names come only from the internal Tables
+        # registry (never user input), so the literal-string requirement
+        # is a false positive for this pattern.
+        -
+            message: '#Parameter \#1 \$query of method wpdb::prepare\(\) expects literal-string#'
+            paths:
+                - src/Forms/FormRepository.php
+                - src/Leads/LeadRepository.php
+                - src/Leads/LeadNoteRepository.php

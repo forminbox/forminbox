@@ -1,0 +1,28 @@
+# Excluded from the release ZIP. The ZIP ships: forminbox.php, uninstall.php,
+# src/, build/, vendor/ (autoloader only, from composer install --no-dev).
+.distignore
+.editorconfig
+.git
+.github
+.gitignore
+.phpunit.result.cache
+.phpunit.result.cache.integration
+bin
+.wp-env.json
+client
+composer.json
+composer.lock
+docs
+node_modules
+package.json
+package-lock.json
+phpcs.xml.dist
+phpstan.neon.dist
+postcss.config.js
+phpunit.integration.xml.dist
+phpunit.unit.xml.dist
+PROJECT_PLAN.md
+README.md
+tests
+tsconfig.json
+webpack.config.js

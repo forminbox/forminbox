@@ -1,0 +1,22 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "forminbox/form",
+	"title": "FormInbox Form",
+	"category": "widgets",
+	"icon": "email-alt2",
+	"description": "Embed a FormInbox form. Submissions land in your FormInbox inbox with source context.",
+	"keywords": [ "form", "contact", "lead" ],
+	"textdomain": "forminbox",
+	"attributes": {
+		"formId": {
+			"type": "number",
+			"default": 0
+		}
+	},
+	"supports": {
+		"html": false,
+		"multiple": true
+	},
+	"editorScript": "forminbox-block-form"
+}

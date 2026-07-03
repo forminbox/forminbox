@@ -1,0 +1,43 @@
+{
+	"name": "forminbox",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Standalone form and lead management plugin for WordPress.",
+	"license": "GPL-2.0-or-later",
+	"scripts": {
+		"build": "wp-scripts build",
+		"start": "wp-scripts start",
+		"typecheck": "tsc --noEmit",
+		"lint:js": "wp-scripts lint-js client",
+		"format": "wp-scripts format client",
+		"env:start": "wp-env start && wp-env run cli wp plugin activate forminbox",
+		"env:stop": "wp-env stop",
+		"env:destroy": "wp-env destroy",
+		"test:php": "wp-env run tests-cli --env-cwd=wp-content/plugins/forminbox vendor/bin/phpunit -c phpunit.integration.xml.dist"
+	},
+	"devDependencies": {
+		"@radix-ui/react-dialog": "^1.1.4",
+		"@radix-ui/react-select": "^2.1.4",
+		"@radix-ui/react-slot": "^1.1.1",
+		"@radix-ui/react-switch": "^1.1.2",
+		"@radix-ui/react-tabs": "^1.1.2",
+		"@tailwindcss/postcss": "^4.1.0",
+		"@types/react": "^18.3.0",
+		"@types/react-dom": "^18.3.0",
+		"@wordpress/api-fetch": "^7.26.0",
+		"@wordpress/block-editor": "^15.23.0",
+		"@wordpress/blocks": "^15.23.0",
+		"@wordpress/components": "^36.1.0",
+		"@wordpress/element": "^6.26.0",
+		"@wordpress/env": "^10.26.0",
+		"@wordpress/i18n": "^5.26.0",
+		"@wordpress/scripts": "^30.19.0",
+		"@wordpress/server-side-render": "^6.26.0",
+		"class-variance-authority": "^0.7.1",
+		"clsx": "^2.1.1",
+		"lucide-react": "^0.462.0",
+		"tailwind-merge": "^3.0.1",
+		"tailwindcss": "^4.1.0",
+		"typescript": "^5.5.0"
+	}
+}

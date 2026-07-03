@@ -1,0 +1,159 @@
+<?php
+declare(strict_types=1);
+
+namespace FormInbox\Rendering;
+
+use FormInbox\Forms\FormRepository;
+use FormInbox\Forms\FormStatus;
+use FormInbox\Http\SubmissionsController;
+use FormInbox\Plugin;
+use FormInbox\Submissions\SubmissionContext;
+use FormInbox\Submissions\SubmissionHandler;
+use FormInbox\Submissions\SubmissionOutcome;
+
+/**
+ * The one embedding path: the shortcode and the block both delegate here,
+ * which is what guarantees they render identically (MILESTONES M4).
+ *
+ * Also owns the no-JS fallback: the rendered form POSTs back to the page,
+ * and this embed processes that POST before re-rendering.
+ */
+final class FormEmbed {
+
+	public function __construct(
+		private readonly Plugin $plugin,
+		private readonly FormRepository $forms,
+		private readonly SubmissionHandler $handler,
+		private readonly FormRenderer $renderer,
+	) {
+	}
+
+	public function render( int $form_id ): string {
+		$form = $form_id > 0 ? $this->forms->find( $form_id ) : null;
+
+		if ( null === $form || FormStatus::Active !== $form->status ) {
+			// Nothing for visitors; a visible placeholder for people who can
+			// edit content (also what the block's editor preview shows).
+			return current_user_can( 'edit_posts' )
+				? sprintf(
+					'<div class="forminbox-form forminbox-placeholder">%s</div>',
+					esc_html__( 'This FormInbox form is unavailable — it may have been archived. Only editors see this notice.', 'forminbox' )
+				)
+				: '';
+		}
+
+		$state = $this->maybeHandlePost( $form_id );
+
+		$this->enqueueScript();
+
+		return $this->renderer->render(
+			$form,
+			$state,
+			$this->currentUrl(),
+			rest_url( SubmissionsController::REST_NAMESPACE . '/submissions' )
+		);
+	}
+
+	private function maybeHandlePost( int $form_id ): RenderState {
+		// The no-JS path: the form POSTs back to the page it lives on. A
+		// signed, form-bound timestamp token stands in for a nonce, which
+		// page caching would break (verified in SubmissionHandler); field
+		// values are sanitized per field type by SubmissionValidator.
+		// phpcs:disable WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+			return RenderState::blank();
+		}
+
+		if ( $form_id !== (int) ( $_POST['forminbox_form_id'] ?? 0 ) ) {
+			return RenderState::blank();
+		}
+
+		$raw_fields = array();
+
+		if ( isset( $_POST['forminbox_fields'] ) && is_array( $_POST['forminbox_fields'] ) ) {
+			foreach ( wp_unslash( $_POST['forminbox_fields'] ) as $key => $value ) {
+				if ( is_string( $key ) && is_scalar( $value ) ) {
+					$raw_fields[ $key ] = (string) $value;
+				}
+			}
+		}
+
+		$submission = array(
+			'token'     => $this->postString( 'forminbox_token' ),
+			'issued_at' => (int) ( $_POST['forminbox_issued_at'] ?? 0 ),
+			'website'   => $this->postString( SubmissionHandler::HONEYPOT_FIELD ),
+			'fields'    => $raw_fields,
+		);
+
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['REMOTE_ADDR'] ) ) : null;
+
+		/**
+		 * Filters whether a keyed hash of the visitor's IP is stored with the
+		 * lead. Return false to store nothing IP-derived at all — note that
+		 * per-client rate limiting is keyed on this hash, so disabling it
+		 * also disables rate limiting.
+		 *
+		 * @param bool $store Default true.
+		 */
+		if ( ! apply_filters( 'forminbox_store_ip_hash', true ) ) {
+			$ip = null;
+		}
+
+		$context = SubmissionContext::fromRaw(
+			esc_url_raw( $this->postString( 'forminbox_source_url' ) ),
+			sanitize_text_field( $this->postString( 'forminbox_source_title' ) ),
+			isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( (string) $_SERVER['HTTP_REFERER'] ) ) : null,
+			isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['HTTP_USER_AGENT'] ) ) : null,
+			$ip,
+			wp_salt( 'auth' )
+		);
+		// phpcs:enable
+
+		$outcome = $this->handler->handle( $form_id, $submission, $context );
+
+		return match ( $outcome->status ) {
+			SubmissionOutcome::CREATED => RenderState::succeeded(),
+			SubmissionOutcome::INVALID => RenderState::failed(
+				$outcome->fieldErrors,
+				array_map( 'sanitize_textarea_field', $raw_fields )
+			),
+			default => RenderState::rejectedSubmission(),
+		};
+	}
+
+	private function postString( string $key ): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Callers sanitize per use.
+		$value = $_POST[ $key ] ?? '';
+
+		return is_scalar( $value ) ? sanitize_text_field( wp_unslash( (string) $value ) ) : '';
+	}
+
+	private function enqueueScript(): void {
+		$asset_file = $this->plugin->dir() . 'build/public-form.asset.php';
+
+		if ( ! file_exists( $asset_file ) ) {
+			return;
+		}
+
+		$asset = require $asset_file;
+
+		wp_enqueue_script(
+			'forminbox-public-form',
+			$this->plugin->url() . 'build/public-form.js',
+			$asset['dependencies'],
+			$asset['version'],
+			true
+		);
+	}
+
+	private function currentUrl(): string {
+		if ( is_singular() ) {
+			return (string) get_permalink();
+		}
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/';
+
+		return esc_url_raw( home_url( (string) $request_uri ) );
+	}
+}

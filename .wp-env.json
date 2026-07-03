@@ -1,0 +1,9 @@
+{
+	"phpVersion": "8.2",
+	"config": {
+		"DISALLOW_FILE_MODS": true
+	},
+	"mappings": {
+		"wp-content/plugins/forminbox": "."
+	}
+}

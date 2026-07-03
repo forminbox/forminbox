@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<ruleset name="FormInbox">
+	<description>FormInbox coding standard: WordPress security and best-practice sniffs on top of PSR-4/modern-PHP naming.</description>
+
+	<file>forminbox.php</file>
+	<file>uninstall.php</file>
+	<file>src</file>
+	<file>tests</file>
+
+	<!-- Test-suite config mimics wp-config.php: it must define core constants. -->
+	<exclude-pattern>tests/Integration/wp-tests-config\.php</exclude-pattern>
+
+	<arg value="sp"/>
+	<arg name="extensions" value="php"/>
+	<arg name="parallel" value="8"/>
+
+	<rule ref="WordPress-Extra">
+		<!-- PSR-4 file/class naming, not class-*.php. -->
+		<exclude name="WordPress.Files.FileName"/>
+		<!-- camelCase methods and modern naming; PHPStan guards the rest. -->
+		<exclude name="WordPress.NamingConventions.ValidFunctionName"/>
+		<exclude name="WordPress.NamingConventions.ValidVariableName"/>
+		<!-- Modern PHP style choices. -->
+		<exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+		<exclude name="Generic.Arrays.DisallowLongArraySyntax"/>
+		<exclude name="WordPress.PHP.YodaConditions"/>
+		<exclude name="Universal.Operators.DisallowShortTernary"/>
+		<!-- Docs-level commenting requirements are not enforced in v0.1. -->
+		<exclude name="Squiz.Commenting"/>
+		<exclude name="Generic.Commenting"/>
+	</rule>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="forminbox"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="forminbox"/>
+				<element value="FormInbox"/>
+				<element value="FORMINBOX"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<element value="forminbox_manage_forms"/>
+				<element value="forminbox_manage_leads"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Tests: WP test-suite conventions differ; relax non-security noise. -->
+	<rule ref="WordPress.DB.DirectDatabaseQuery">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<!-- Tests legitimately touch core globals ($wp_rest_server) and fire core hooks. -->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+</ruleset>

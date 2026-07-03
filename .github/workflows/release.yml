@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, smoke-test, and publish the release ZIP
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -ppassword"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+          tools: wp-cli
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Verify tag matches every recorded version
+        run: bin/check-version.sh "${GITHUB_REF_NAME}"
+
+      - name: Install production PHP dependencies
+        run: composer install --no-dev --optimize-autoloader --prefer-dist --no-progress
+
+      - name: Build assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Assemble and verify the ZIP
+        run: bin/build-zip.sh
+
+      - name: Smoke test — install and activate on a clean WordPress
+        run: |
+          mkdir -p /tmp/smoke && cd /tmp/smoke
+          wp core download --version=latest
+          wp config create --dbname=wordpress --dbuser=root --dbpass=password --dbhost=127.0.0.1
+          wp core install --url=http://localhost --title=Smoke \
+            --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+          wp plugin install "${GITHUB_WORKSPACE}/dist/forminbox.zip" --activate
+          wp plugin is-active forminbox
+          test "$(wp db query "SHOW TABLES LIKE 'wp_forminbox%'" --skip-column-names | grep -c .)" -eq 3
+          test "$(wp option get forminbox_schema_version)" = "1"
+          wp cap list administrator | grep -q forminbox_manage_forms
+          echo "Smoke test passed."
+
+      - name: Publish GitHub release with the ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/forminbox.zip \
+            --title "FormInbox ${GITHUB_REF_NAME}" \
+            --generate-notes
