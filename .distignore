@@ -1,5 +1,6 @@
 # Excluded from the release ZIP. The ZIP ships: forminbox.php, uninstall.php,
-# src/, build/, vendor/ (autoloader only, from composer install --no-dev).
+# src/, blocks/, build/, readme.txt, composer.json (Plugin Check wants it
+# alongside vendor/), and vendor/ (autoloader only, composer install --no-dev).
 .distignore
 .editorconfig
 .git
@@ -10,7 +11,6 @@
 bin
 .wp-env.json
 client
-composer.json
 composer.lock
 docs
 node_modules

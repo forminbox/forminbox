@@ -28,9 +28,12 @@ final class Uninstaller {
 
 		foreach ( $tables->all() as $table ) {
 			// Table names come from the internal registry, not user input,
-			// and DDL cannot be parameterized.
+			// and DDL identifiers cannot be parameterized via prepare() —
+			// escape and quote the identifier instead.
+			$safe_table = esc_sql( $table );
+
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+			$wpdb->query( "DROP TABLE IF EXISTS `{$safe_table}`" );
 		}
 
 		delete_option( Migrator::OPTION );

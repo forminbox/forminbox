@@ -57,20 +57,31 @@ final class FormEmbed {
 	private function maybeHandlePost( int $form_id ): RenderState {
 		// The no-JS path: the form POSTs back to the page it lives on. A
 		// signed, form-bound timestamp token stands in for a nonce, which
-		// page caching would break (verified in SubmissionHandler); field
-		// values are sanitized per field type by SubmissionValidator.
-		// phpcs:disable WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+		// page caching would break (verified in SubmissionHandler).
+		// phpcs:disable WordPress.Security.NonceVerification.Missing
+		$request_method = isset( $_SERVER['REQUEST_METHOD'] )
+			? sanitize_text_field( wp_unslash( (string) $_SERVER['REQUEST_METHOD'] ) )
+			: '';
+
+		if ( 'POST' !== $request_method ) {
 			return RenderState::blank();
 		}
 
-		if ( $form_id !== (int) ( $_POST['forminbox_form_id'] ?? 0 ) ) {
+		$posted_form_id = isset( $_POST['forminbox_form_id'] ) && is_scalar( $_POST['forminbox_form_id'] )
+			? absint( wp_unslash( $_POST['forminbox_form_id'] ) )
+			: 0;
+
+		if ( $form_id !== $posted_form_id ) {
 			return RenderState::blank();
 		}
 
 		$raw_fields = array();
 
 		if ( isset( $_POST['forminbox_fields'] ) && is_array( $_POST['forminbox_fields'] ) ) {
+			// Field values are intentionally not run through a generic WP
+			// sanitizer here: SubmissionValidator sanitizes each one with
+			// its field type's own rules before anything is stored.
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			foreach ( wp_unslash( $_POST['forminbox_fields'] ) as $key => $value ) {
 				if ( is_string( $key ) && is_scalar( $value ) ) {
 					$raw_fields[ $key ] = (string) $value;
@@ -78,9 +89,13 @@ final class FormEmbed {
 			}
 		}
 
+		$issued_at = isset( $_POST['forminbox_issued_at'] ) && is_scalar( $_POST['forminbox_issued_at'] )
+			? absint( wp_unslash( $_POST['forminbox_issued_at'] ) )
+			: 0;
+
 		$submission = array(
 			'token'     => $this->postString( 'forminbox_token' ),
-			'issued_at' => (int) ( $_POST['forminbox_issued_at'] ?? 0 ),
+			'issued_at' => $issued_at,
 			'website'   => $this->postString( SubmissionHandler::HONEYPOT_FIELD ),
 			'fields'    => $raw_fields,
 		);
@@ -122,10 +137,13 @@ final class FormEmbed {
 	}
 
 	private function postString( string $key ): string {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Callers sanitize per use.
-		$value = $_POST[ $key ] ?? '';
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Token-guarded no-JS path; see maybeHandlePost().
+		if ( ! isset( $_POST[ $key ] ) || ! is_scalar( $_POST[ $key ] ) ) {
+			return '';
+		}
 
-		return is_scalar( $value ) ? sanitize_text_field( wp_unslash( (string) $value ) ) : '';
+		return sanitize_text_field( wp_unslash( (string) $_POST[ $key ] ) );
+		// phpcs:enable
 	}
 
 	private function enqueueScript(): void {
