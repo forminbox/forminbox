@@ -46,6 +46,13 @@ Nothing, by default. Forms, leads, and notes survive uninstall unless you explic
 
 Not yet — that is the first item on the 0.2 roadmap. Leads live in the FormInbox inbox in wp-admin.
 
+== Development ==
+
+The development source, build tools, and tests are maintained publicly at:
+https://github.com/forminbox/forminbox
+
+The WordPress.org release ZIP contains the built plugin assets. To build from source, see the repository README.
+
 == Screenshots ==
 
 1. FormInbox forms list.

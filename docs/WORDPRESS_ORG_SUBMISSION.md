@@ -28,6 +28,39 @@
       `docs/RELEASING.md` — block editor flow, submissions with and without JS,
       inbox, uninstall toggle in both positions).
 
+### Source availability note
+
+- The repository at https://github.com/forminbox/forminbox is public and acts
+  as the canonical development/source repository.
+- The release ZIP intentionally excludes source and build tooling (`client/`
+  TypeScript sources, tests, lockfiles, package files) per `.distignore`;
+  it ships the built assets and the production autoloader.
+- WordPress.org reviewers can access the full source, build tools, and test
+  suites at the GitHub repository above.
+- `Plugin URI` intentionally points to the public GitHub repo for now, until
+  the product domain is purchased.
+
+## Reviewer note: public form submissions
+
+FormInbox exposes one intentionally public REST endpoint,
+`POST forminbox/v1/submissions`, used by visitor form submissions. Visitors
+are anonymous and public pages are often served from page caches, so a
+logged-in WordPress nonce is the wrong tool: it would be cached stale and
+fail legitimate submissions. Instead, every rendered form embeds a
+form-bound, HMAC-signed timestamp token, and the endpoint applies
+server-side protections:
+
+- honeypot field (submissions that fill it are rejected),
+- minimum-fill-time validation via the signed timestamp (too-fast = bot),
+- strict content-type checks (JSON only on the REST path),
+- per-field server-side sanitization and validation through the field type
+  registry; input keys not defined by the form are discarded,
+- per-client rate limiting,
+- escaped output everywhere submission data is displayed — stored values are
+  treated as untrusted forever.
+
+Every other REST route has an explicit capability-based `permission_callback`.
+
 ## Plugin directory assets (not part of the ZIP)
 
 These live in the SVN `assets/` directory, not in the plugin. Prepare before
